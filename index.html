@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TF-IDF : du texte aux nombres</title>
+<style>
+:root{--bg:#eef2f9;--sf:#fff;--ink:#0d1b38;--mute:#5a6a88;--line:#d3dcec;--acc:#1f45e0;--soft:#e2e8ff;--hl:#ffcf40;--bad:#d24a3c;--ok:#12906a;--hot:31,69,224;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0a1122;--sf:#121c35;--ink:#e8eefc;--mute:#93a3c6;--line:#26365b;--acc:#8aa4ff;--soft:#1a2853;--bad:#ff8a7c;--ok:#4fd6a8;--hot:138,164,255}}
+:root[data-theme="dark"]{--bg:#0a1122;--sf:#121c35;--ink:#e8eefc;--mute:#93a3c6;--line:#26365b;--acc:#8aa4ff;--soft:#1a2853;--bad:#ff8a7c;--ok:#4fd6a8;--hot:138,164,255}
+*{box-sizing:border-box}html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:clamp(14px,1.55vw,19px)/1.5 "Source Serif 4",Georgia,serif;overflow:hidden}
+h1,h2,h3,button,label,th,.sans,.tag{font-family:"Space Grotesk","Segoe UI",Helvetica,Arial,sans-serif}
+code,pre,.n,textarea,input,select{font-family:"JetBrains Mono",Consolas,Menlo,monospace}
+:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+#app{height:100%;display:flex;flex-direction:column}
+.stage{flex:1;position:relative;overflow:hidden}
+.slide{position:absolute;inset:0;padding:3.5vh 5.5vw;overflow-y:auto;display:flex;flex-direction:column;justify-content:center;opacity:0;visibility:hidden;transform:translateX(3%);transition:opacity .35s,transform .35s,visibility 0s .35s}
+.slide.on{opacity:1;visibility:visible;transform:none;transition:opacity .35s,transform .35s}
+.slide.past{transform:translateX(-3%)}
+.tag{display:inline-block;align-self:flex-start;background:var(--ink);color:var(--bg);font-size:.72em;font-weight:600;padding:.2em .7em;border-radius:99px;margin-bottom:.7em}
+h1{font-size:clamp(2.2rem,6.4vw,5rem);line-height:1;letter-spacing:-.035em;margin:0 0 .35em;max-width:12em}
+h2{font-size:clamp(1.6rem,3.8vw,2.8rem);letter-spacing:-.025em;margin:0 0 .4em;line-height:1.08}
+h3{font-size:1em;margin:0 0 .3em}
+p,li{max-width:38em;margin:.25em 0}ul{padding-left:1.1em;margin:.3em 0}
+.sub{color:var(--mute)}
+mark{background:var(--hl);color:#111;padding:0 .25em;border-radius:2px}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:2.2vw;align-items:start}
+@media (max-width:820px){.cols{grid-template-columns:1fr}.slide{padding:3vh 5vw}}
+.f{background:var(--sf);border-left:6px solid var(--acc);padding:.55em 1em;margin:.5em 0;font-family:"JetBrains Mono",Consolas,monospace;font-size:.85em;overflow-x:auto}
+.g{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-top:.5em}
+.c{background:var(--sf);border:1px solid var(--line);border-radius:8px;padding:.7em 1em}
+.c.w{border-top:4px solid var(--bad)}.c.k{border-top:4px solid var(--acc)}
+pre{background:#0d1b38;color:#e8eefc;padding:.7em 1em;border-radius:8px;font-size:.72em;overflow-x:auto;margin:.5em 0}
+table{border-collapse:collapse;font-size:.78em;background:var(--sf)}
+th,td{padding:.3em .6em;border:1px solid var(--line);text-align:left}th{background:var(--soft)}
+td.n{text-align:center;cursor:default}td.sel{outline:3px solid var(--hl);outline-offset:-3px}
+.tw{overflow-x:auto;max-width:100%}
+textarea,input[type=text]{width:100%;font-size:.8em;background:var(--sf);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:.5em}
+textarea{min-height:5.5em}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:.5em 0;font-size:.8em}
+.row input,.row select{font-size:.9em;padding:.3em .5em;width:6em;border:1px solid var(--line);border-radius:6px;background:var(--sf);color:var(--ink)}
+.row select{width:auto}.row label{display:flex;gap:6px;align-items:center}
+.seg{display:inline-flex;border:1px solid var(--ink);border-radius:6px;overflow:hidden}
+.seg button{border:0;background:transparent;color:var(--ink);padding:.4em .9em;font-weight:600;cursor:pointer;font-size:.8em}
+.seg button[aria-pressed=true]{background:var(--ink);color:var(--bg)}
+.pipe{display:flex;align-items:center;gap:.5em;flex-wrap:wrap;margin:.6em 0}
+.pipe div.b{background:var(--sf);border:2px solid var(--ink);border-radius:8px;padding:.5em .9em;font-family:"Space Grotesk",sans-serif;font-weight:600}
+.pipe div.b:last-child{background:var(--acc);border-color:var(--acc);color:#fff}
+.pipe i{font-style:normal;color:var(--mute);font-size:1.4em}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{background:var(--sf);border:1px solid var(--line);border-radius:6px;padding:.1em .55em;font-family:"JetBrains Mono",Consolas,monospace;font-size:.8em}
+.chip.x{text-decoration:line-through;color:var(--bad);border-color:var(--bad);opacity:.7}
+.chip.hi{background:var(--acc);color:#fff;border-color:var(--acc)}
+.br{display:grid;grid-template-columns:7.5em 1fr 3.2em;gap:8px;align-items:center;font-size:.8em;margin:3px 0}
+.br .tr{background:var(--soft);border-radius:4px;height:1.1em;overflow:hidden}
+.br .tr i{display:block;height:100%;background:var(--acc);border-radius:4px;transition:width .4s}
+.br .tr i.b{background:var(--bad)}.br span:last-child{text-align:right}
+.quad{position:relative;background:var(--sf);border:1px solid var(--line);border-radius:8px;height:min(46vh,340px);background-image:linear-gradient(var(--line),var(--line)),linear-gradient(var(--line),var(--line));background-size:1px 100%,100% 1px;background-position:50% 0,0 50%;background-repeat:no-repeat}
+.quad b{position:absolute;padding:.15em .6em;border-radius:99px;font-size:.78em;font-family:"Space Grotesk",sans-serif;background:var(--ink);color:var(--bg);white-space:nowrap}
+.quad em{position:absolute;font-size:.68em;color:var(--mute);font-style:normal;font-family:"Space Grotesk",sans-serif}
+.big{font-size:2.4em;font-family:"Space Grotesk",sans-serif;font-weight:700;letter-spacing:-.03em;line-height:1}
+input[type=range]{width:100%;accent-color:var(--acc)}
+.nav{display:flex;align-items:center;gap:8px;padding:8px 14px;border-top:1px solid var(--line);background:var(--sf);flex-wrap:wrap}
+.nav button{border:1px solid var(--ink);background:transparent;color:var(--ink);border-radius:6px;padding:7px 14px;font-weight:600;cursor:pointer;font-size:.8em}
+.nav button:hover:not(:disabled){background:var(--ink);color:var(--bg)}.nav button:disabled{opacity:.35;cursor:default}
+.dots{display:flex;gap:6px;margin-left:auto;align-items:center}
+.dots button{width:11px;height:11px;padding:0;border-radius:50%;border:1px solid var(--ink);background:transparent}
+.dots button[aria-current=true]{background:var(--acc);border-color:var(--acc);transform:scale(1.35)}
+.rv{animation:rv .5s both}@keyframes rv{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.slide,.br .tr i{transition:none}.rv{animation:none}}
+</style></head><body>
+<div id="app"><div class="stage" id="stage">
+
+<section class="slide"><span class="tag">Veille Machine Learning</span>
+<h1>Du texte aux nombres : TF-IDF</h1>
+<p class="sub">Une phrase entre, un vecteur sort. Voici la vraie sortie de <code>TfidfVectorizer</code> pour la première phrase d'un mini-corpus.</p>
+<div class="chips" id="h-tok" style="margin-top:.8em"></div>
+<div class="tw" style="margin-top:.6em"><table id="h-vec"></table></div>
+<p class="sub" style="font-size:.85em">Objectif : comprendre comment cette représentation est construite, comment la lire, et quand elle ne suffit plus.</p></section>
+
+<section class="slide"><span class="tag">1 · Pourquoi</span><h2>Un modèle ne lit pas, il calcule</h2>
+<div class="pipe"><div class="b">Texte brut</div><i>›</i><div class="b">Tokens</div><i>›</i><div class="b">Vecteur numérique</div><i>›</i><div class="b">Modèle ML</div></div>
+<div class="cols"><div><ul><li>Les algorithmes attendent une matrice <code>(n_documents, n_termes)</code> de taille fixe.</li><li>Une matrice permet de mesurer des distances et de comparer des documents.</li><li>Problème : si l'on compte simplement les mots, les <mark>mots vides</mark> écrasent le signal.</li></ul></div>
+<div><h3>Comptage brut sur le corpus (mots les plus fréquents)</h3><div id="s2-bars"></div></div></div></section>
+
+<section class="slide"><span class="tag">2 · TF</span><h2>Term Frequency : ce document parle de quoi ?</h2>
+<div class="cols"><div>
+<div class="f">TF(t, d) = occurrences de t dans d<br>TF normalisé = occurrences / nombre de mots</div>
+<label class="sans" style="font-size:.8em;font-weight:600" for="tf-in">Modifiez la phrase</label>
+<input type="text" id="tf-in" value="le chat mange le poisson et le chat dort">
+<div class="seg" style="margin-top:.6em"><button type="button" id="tf-raw" aria-pressed="true">Comptage brut</button><button type="button" id="tf-norm" aria-pressed="false">Normalisé</button></div>
+<p class="sub" style="font-size:.85em">Variante : <code>sublinear_tf=True</code> remplace tf par 1 + ln(tf).</p></div>
+<div id="tf-bars"></div></div>
+<p>Limite : « le » gagne toujours. Le TF seul ne dit pas si un mot est <mark>discriminant</mark>.</p></section>
+
+<section class="slide"><span class="tag">3 · IDF</span><h2>Inverse Document Frequency : ce mot est-il rare ?</h2>
+<div class="cols"><div>
+<div class="f">IDF(t) = ln( N / df(t) )<br>sklearn : ln( (1+N) / (1+df) ) + 1</div>
+<p>Corpus de <b>N = 1000</b> documents. Faites glisser le nombre de documents contenant le terme.</p>
+<label class="sans" for="idf-r" style="font-size:.85em;font-weight:600">df(t) = <span id="idf-df">50</span> documents</label>
+<input type="range" id="idf-r" min="1" max="1000" value="50">
+<div class="row"><div><div class="big" id="idf-v1">3.00</div><span class="sub">ln(N/df)</span></div><div><div class="big" id="idf-v2">3.93</div><span class="sub">version sklearn</span></div></div></div>
+<svg id="idf-svg" viewBox="0 0 400 240" role="img" aria-label="Courbe de l'IDF en fonction de df" style="width:100%;background:var(--sf);border:1px solid var(--line);border-radius:8px"></svg></div>
+<p>Rare : poids élevé. Présent partout : poids minimal. Le lissage évite la division par zéro.</p></section>
+
+<section class="slide"><span class="tag">4 · Score</span><h2>TF-IDF = fréquence locale × rareté globale</h2>
+<div class="cols"><div>
+<div class="f">TF-IDF(t, d) = TF(t, d) × IDF(t)<br>puis normalisation L2 de chaque ligne</div>
+<ul><li><mark>Score fort</mark> : mot répété ici et rare ailleurs, il caractérise le document.</li><li><mark>Score faible</mark> : mot banal, ou à peine cité.</li><li>La norme L2 rend le score <b>relatif</b> aux autres termes du document, donc comparable entre textes de longueurs différentes.</li></ul></div>
+<div class="quad" role="img" aria-label="Carte TF contre IDF">
+<em style="left:8px;top:6px">TF faible · IDF élevé</em><em style="right:8px;top:6px">TF élevé · IDF élevé</em><em style="left:8px;bottom:6px">TF faible · IDF faible</em><em style="right:8px;bottom:6px">TF élevé · IDF faible</em>
+<b style="right:10%;top:28%;background:var(--acc)">« transformer » : fort</b><b style="left:8%;top:32%">« anecdote » : moyen</b><b style="right:10%;bottom:28%">« le » : moyen</b><b style="left:10%;bottom:28%;background:var(--mute)">« de » : bruit</b></div></div></section>
+
+<section class="slide"><span class="tag">5 · Matrice</span><h2>Construire et lire la matrice</h2>
+<div class="cols"><div>
+<pre>vec = TfidfVectorizer()
+X = vec.fit_transform(corpus)
+# lignes : documents
+# colonnes : termes (ordre alphabétique)
+# valeurs : TF-IDF, norme L2 = 1</pre>
+<ul><li>Cliquez une case pour voir le détail du calcul.</li><li>Le point <b>·</b> = terme absent (matrice creuse).</li><li><code>fit</code> sur l'entraînement seulement.</li></ul>
+<div class="c k" id="mx-detail" style="font-size:.85em;min-height:5.2em">Cliquez une case.</div></div>
+<div class="tw"><table id="mx-t"></table></div></div></section>
+
+<section class="slide"><span class="tag">6 · Paramètres</span><h2>Les réglages qui façonnent le vocabulaire</h2>
+<div class="cols"><div>
+<div class="g" style="grid-template-columns:1fr 1fr">
+<div class="c"><h3><code>ngram_range</code></h3>(1,2) ajoute les bigrammes et un peu d'ordre local.</div>
+<div class="c"><h3><code>min_df</code></h3>Retire les termes trop rares.</div>
+<div class="c"><h3><code>max_df</code></h3>Retire les termes trop répandus.</div>
+<div class="c"><h3><code>max_features</code></h3>Garde les N plus fréquents.</div></div>
+<div class="row"><label>ngram max <select id="p-ng"><option>1</option><option>2</option></select></label><label>min_df <input id="p-mn" value="1"></label><label>max_df <input id="p-mx" value="1.0"></label><label>max_features <input id="p-mf" placeholder="aucune"></label></div></div>
+<div><h3 id="p-cnt"></h3><p class="sub" style="font-size:.8em">Barré rouge = terme retiré par vos réglages.</p><div class="chips" id="p-chips"></div></div></div></section>
+
+<section class="slide"><span class="tag">7 · TF-IDF vs Bag of Words</span><h2>Même document, deux représentations</h2>
+<div class="row"><label>Document <select id="v-doc"></select></label></div>
+<div class="cols"><div><h3>Bag of Words <code>CountVectorizer</code></h3><div id="v-bow"></div></div><div><h3>TF-IDF <code>TfidfVectorizer</code></h3><div id="v-tf"></div></div></div>
+<p>Bag of Words : simple, rapide, bon pour Naive Bayes. TF-IDF : <mark>écrase les mots courants</mark>, meilleur pour classification, recherche et similarité. Les deux ignorent l'ordre.</p></section>
+
+<section class="slide"><span class="tag">8 · Limites</span><h2>Quand TF-IDF ne suffit plus</h2>
+<div class="cols"><div>
+<p>Deux phrases qui veulent dire la même chose, sans mot commun :</p>
+<input type="text" id="l-a" value="la voiture roule vite" aria-label="Phrase A"><input type="text" id="l-b" value="l'automobile file rapidement" aria-label="Phrase B" style="margin-top:6px">
+<div class="row"><div><div class="big" id="l-cos">0.00</div><span class="sub">similarité cosinus</span></div><span class="sub" id="l-msg" style="max-width:16em"></span></div></div>
+<div class="g" style="grid-template-columns:1fr 1fr;margin-top:0">
+<div class="c w"><h3>Pas de sémantique</h3>Synonymes indépendants, polysémie ignorée.</div>
+<div class="c w"><h3>Ordre perdu</h3>« pas bon » ≈ « bon ».</div>
+<div class="c w"><h3>Grande dimension</h3>Vocabulaire figé, matrice creuse énorme.</div>
+<div class="c w"><h3>Dépend du corpus</h3>Les IDF changent avec les données.</div></div></div>
+<p>Alternatives : <mark>embeddings</mark> (Word2Vec, Sentence-BERT) et Transformers. TF-IDF reste une excellente baseline, rapide et interprétable.</p></section>
+
+<section class="slide"><span class="tag">9 · Exemple concret</span><h2>À vous : transformez votre corpus</h2>
+<div class="cols" style="grid-template-columns:1fr 1.6fr"><div>
+<textarea id="e-c" spellcheck="false" aria-label="Corpus">le chat mange la souris
+le chien mange la viande
+le chat dort sur le canapé
+la souris dort dans le trou</textarea>
+<div class="row"><label>ngram max <select id="e-ng"><option>1</option><option>2</option></select></label><label>min_df <input id="e-mn" value="1"></label><label>max_df <input id="e-mx" value="1.0"></label></div>
+<div id="e-top" style="font-size:.85em"></div></div>
+<div><div class="tw"><table id="e-t"></table></div><p class="sub" id="e-msg" style="font-size:.8em"></p></div></div></section>
+
+</div>
+<div class="nav"><button id="pv" type="button">Précédent</button><button id="nx" type="button">Suivant</button><button id="fs" type="button">Plein écran</button><button id="th" type="button">Thème</button><div class="dots" id="dots"></div></div></div>
+<script>
+(function(){
+var $=function(i){return document.getElementById(i)};
+var CORPUS=["le chat mange la souris","le chien mange la viande","le chat dort sur le canapé","la souris dort dans le trou"];
+function tok(s){return s.toLowerCase().match(/[\p{L}\p{N}_]{2,}/gu)||[]}
+function eng(docs,o){o=o||{};var b=o.ng||1,N=docs.length;
+var counts=docs.map(function(d){var t=tok(d),c={};for(var n=1;n<=b;n++)for(var i=0;i+n<=t.length;i++){var g=t.slice(i,i+n).join(" ");c[g]=(c[g]||0)+1}return c});
+var df={},tot={};counts.forEach(function(c){for(var w in c){df[w]=(df[w]||0)+1;tot[w]=(tot[w]||0)+c[w]}});
+var mn=o.mn==null?1:o.mn,mx=o.mx==null?N:o.mx,lo=mn<1?mn*N:mn,hi=o.mxf?mx*N:mx;
+var all=Object.keys(df).sort(),keep={};all.forEach(function(w){keep[w]=df[w]>=lo&&df[w]<=hi});
+var v=all.filter(function(w){return keep[w]});
+if(o.mf>0&&v.length>o.mf){var srt=v.slice().sort(function(x,y){return tot[y]-tot[x]||(x<y?-1:1)}).slice(0,o.mf),set={};srt.forEach(function(w){set[w]=1});all.forEach(function(w){if(!set[w])keep[w]=false});v=v.filter(function(w){return set[w]})}
+var idf=v.map(function(w){return Math.log((1+N)/(1+df[w]))+1});
+var raw=counts.map(function(c){return v.map(function(w){return c[w]||0})});
+var rows=raw.map(function(r){var x=r.map(function(t,j){return t*idf[j]}),n=Math.sqrt(x.reduce(function(s,a){return s+a*a},0))||1;return x.map(function(a){return a/n})});
+return{v:v,all:all,keep:keep,idf:idf,df:df,tot:tot,raw:raw,rows:rows,N:N}}
+function esc(s){return String(s).replace(/[&<>]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;"}[c]})}
+function heat(x,m){var a=x?(0.1+0.8*x/m).toFixed(2):0;return"background:rgba(var(--hot),"+a+");color:"+(x/m>0.6?"#fff":"inherit")}
+function bars(el,items,max,cls){max=max||Math.max.apply(null,items.map(function(i){return i[1]}))||1;el.innerHTML=items.map(function(i){return"<div class=\"br\"><span>"+esc(i[0])+"</span><div class=\"tr\"><i class=\""+(cls||"")+"\" style=\"width:"+(i[1]/max*100)+"%\"></i></div><span class=\"n\">"+(Number.isInteger(i[1])?i[1]:i[1].toFixed(2))+"</span></div>"}).join("")}
+function table(el,E,o){o=o||{};var m=Math.max.apply(null,E.rows.map(function(r){return Math.max.apply(null,r)}))||1;
+el.innerHTML="<tr><th>Doc</th>"+E.v.map(function(w){return"<th>"+esc(w)+"</th>"}).join("")+"</tr>"+E.rows.map(function(r,i){return"<tr><td><b>D"+(i+1)+"</b></td>"+r.map(function(x,j){return"<td class=\"n\" data-i=\""+i+"\" data-j=\""+j+"\" style=\""+heat(x,m)+"\">"+(x?x.toFixed(2):"·")+"</td>"}).join("")+"</tr>"}).join("")+"<tr><td>idf</td>"+E.idf.map(function(x){return"<td class=\"n\">"+x.toFixed(2)+"</td>"}).join("")+"</tr>"}
+/* nav */
+var S=[].slice.call(document.querySelectorAll(".slide")),k=0;
+S.forEach(function(s,i){var b=document.createElement("button");b.type="button";b.setAttribute("aria-label","Slide "+(i+1));b.onclick=function(){go(i)};$("dots").appendChild(b)});
+function go(n){k=Math.max(0,Math.min(S.length-1,n));S.forEach(function(s,i){s.classList.toggle("on",i===k);s.classList.toggle("past",i<k)});[].forEach.call($("dots").children,function(d,i){d.setAttribute("aria-current",i===k)});$("pv").disabled=k===0;$("nx").disabled=k===S.length-1;try{history.replaceState(null,"","#"+(k+1))}catch(e){}}
+$("pv").onclick=function(){go(k-1)};$("nx").onclick=function(){go(k+1)};
+document.addEventListener("keydown",function(e){if(/TEXTAREA|INPUT|SELECT/.test(e.target.tagName))return;if(["ArrowRight"," ","PageDown"].indexOf(e.key)>-1){e.preventDefault();go(k+1)}if(e.key==="ArrowLeft"||e.key==="PageUp")go(k-1)});
+var sx=null;$("stage").addEventListener("touchstart",function(e){sx=e.touches[0].clientX},{passive:true});$("stage").addEventListener("touchend",function(e){if(sx===null||/INPUT|TEXTAREA|SELECT/.test(e.target.tagName))return;var d=e.changedTouches[0].clientX-sx;if(Math.abs(d)>60)go(k+(d<0?1:-1));sx=null});
+$("th").onclick=function(){var r=document.documentElement,d=r.getAttribute("data-theme")==="dark"||(!r.getAttribute("data-theme")&&matchMedia("(prefers-color-scheme: dark)").matches);r.setAttribute("data-theme",d?"light":"dark")};
+$("fs").onclick=function(){try{document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen()}catch(e){}};
+/* hero */
+var E0=eng(CORPUS);$("h-tok").innerHTML=tok(CORPUS[0]).map(function(w){return"<span class=\"chip hi\">"+w+"</span>"}).join("");
+(function(){var m=Math.max.apply(null,E0.rows[0]);$("h-vec").innerHTML="<tr>"+E0.v.map(function(w){return"<th>"+w+"</th>"}).join("")+"</tr><tr>"+E0.rows[0].map(function(x,i){return"<td class=\"n rv\" style=\"animation-delay:"+(i*70+300)+"ms;"+heat(x,m)+"\">"+(x?x.toFixed(2):"0")+"</td>"}).join("")+"</tr>"})();
+/* s2 */
+(function(){var t=E0.v.map(function(w,j){return[w,E0.raw.reduce(function(s,r){return s+r[j]},0)]}).sort(function(a,b){return b[1]-a[1]}).slice(0,7);bars($("s2-bars"),t,null,"b")})();
+/* TF */
+var tfMode="raw";function tf(){var t=tok($("tf-in").value),c={};t.forEach(function(w){c[w]=(c[w]||0)+1});var it=Object.keys(c).map(function(w){return[w,tfMode==="raw"?c[w]:c[w]/t.length]}).sort(function(a,b){return b[1]-a[1]});bars($("tf-bars"),it,null,"")}
+$("tf-in").oninput=tf;$("tf-raw").onclick=function(){tfMode="raw";$("tf-raw").setAttribute("aria-pressed",true);$("tf-norm").setAttribute("aria-pressed",false);tf()};$("tf-norm").onclick=function(){tfMode="n";$("tf-raw").setAttribute("aria-pressed",false);$("tf-norm").setAttribute("aria-pressed",true);tf()};tf();
+/* IDF */
+function idfDraw(){var N=1000,d=+$("idf-r").value;$("idf-df").textContent=d;$("idf-v1").textContent=Math.log(N/d).toFixed(2);$("idf-v2").textContent=(Math.log((1+N)/(1+d))+1).toFixed(2);
+var p="",X=function(x){return 30+Math.log(x)/Math.log(1000)*350},Y=function(y){return 215-y/8*190};for(var i=0;i<=60;i++){var x=Math.pow(1000,i/60);p+=(i?"L":"M")+X(x).toFixed(1)+" "+Y(Math.log((1+N)/(1+x))+1).toFixed(1)}
+var cx=X(d),cy=Y(Math.log((1+N)/(1+d))+1);$("idf-svg").innerHTML="<path d=\""+p+"\" fill=\"none\" stroke=\"var(--acc)\" stroke-width=\"3\"/><line x1=\"30\" y1=\"215\" x2=\"380\" y2=\"215\" stroke=\"var(--line)\"/><line x1=\"30\" y1=\"20\" x2=\"30\" y2=\"215\" stroke=\"var(--line)\"/><line x1=\""+cx+"\" y1=\""+cy+"\" x2=\""+cx+"\" y2=\"215\" stroke=\"var(--hl)\" stroke-dasharray=\"4\"/><circle cx=\""+cx+"\" cy=\""+cy+"\" r=\"7\" fill=\"var(--hl)\" stroke=\"var(--ink)\" stroke-width=\"2\"/><text x=\"34\" y=\"32\" font-size=\"11\" fill=\"var(--mute)\">idf</text><text x=\"330\" y=\"232\" font-size=\"11\" fill=\"var(--mute)\">df (échelle log)</text>"}
+$("idf-r").oninput=idfDraw;idfDraw();
+/* matrix */
+var EM=eng(CORPUS);table($("mx-t"),EM);
+$("mx-t").onclick=function(e){var c=e.target.closest("td[data-i]");if(!c)return;var i=+c.dataset.i,j=+c.dataset.j;[].forEach.call($("mx-t").querySelectorAll(".sel"),function(x){x.classList.remove("sel")});c.classList.add("sel");var t=EM.raw[i][j],id=EM.idf[j],n=Math.sqrt(EM.raw[i].reduce(function(s,a,q){return s+Math.pow(a*EM.idf[q],2)},0));$("mx-detail").innerHTML="<b>D"+(i+1)+" × « "+esc(EM.v[j])+" »</b><br>tf = "+t+", idf = "+id.toFixed(2)+" → brut "+(t*id).toFixed(2)+"<br>norme de la ligne = "+n.toFixed(2)+" → <mark>"+EM.rows[i][j].toFixed(2)+"</mark>"};
+/* params */
+var PC=["le chat mange la souris grise","le chien mange la viande","le chat noir dort sur le canapé","la souris dort dans le trou","le chat et le chien dorment","la viande est dans le frigo"];
+function par(){var mxs=$("p-mx").value.replace(",","."),mx=mxs===""?1:parseFloat(mxs),mn=parseFloat($("p-mn").value.replace(",","."));if(isNaN(mx)||isNaN(mn)){$("p-cnt").textContent="Valeurs invalides";return}
+var E=eng(PC,{ng:+$("p-ng").value,mn:mn,mx:mx,mxf:mx<=1&&/[.]/.test(mxs)||mx<1,mf:parseInt($("p-mf").value,10)});
+var kept=E.all.filter(function(w){return E.keep[w]}).length;$("p-cnt").textContent="Vocabulaire : "+kept+" termes gardés sur "+E.all.length;
+$("p-chips").innerHTML=E.all.map(function(w){return"<span class=\"chip"+(E.keep[w]?"":" x")+"\">"+esc(w)+"</span>"}).join("")}
+["p-ng","p-mn","p-mx","p-mf"].forEach(function(i){$(i).oninput=par});par();
+/* BoW vs TFIDF */
+$("v-doc").innerHTML=CORPUS.map(function(d,i){return"<option value=\""+i+"\">D"+(i+1)+" : "+d+"</option>"}).join("");
+function vs(){var i=+$("v-doc").value,b=[],t=[];EM.v.forEach(function(w,j){if(EM.raw[i][j]){b.push([w,EM.raw[i][j]]);t.push([w,EM.rows[i][j]])}});bars($("v-bow"),b,3,"b");bars($("v-tf"),t,0.8,"")}
+$("v-doc").onchange=vs;vs();
+/* limits */
+function lim(){var E=eng([$("l-a").value,$("l-b").value]),a=E.rows[0],b=E.rows[1],c=0;a.forEach(function(x,i){c+=x*b[i]});$("l-cos").textContent=c.toFixed(2);$("l-msg").textContent=c<0.05?"Aucun mot en commun : TF-IDF les juge sans rapport.":"Ressemblance due uniquement aux mots partagés."}
+$("l-a").oninput=lim;$("l-b").oninput=lim;lim();
+/* lab */
+function lab(){var docs=$("e-c").value.split("\n").map(function(s){return s.trim()}).filter(Boolean),mxs=$("e-mx").value.replace(",","."),mx=mxs===""?1:parseFloat(mxs),mn=parseFloat($("e-mn").value.replace(",","."))||1;
+if(!docs.length||isNaN(mx)){$("e-t").innerHTML="";$("e-msg").textContent="Vérifiez le corpus et les valeurs.";return}
+var E=eng(docs,{ng:+$("e-ng").value,mn:mn,mx:mx,mxf:mx<1||/[.]/.test(mxs)});
+if(!E.v.length){$("e-t").innerHTML="";$("e-msg").textContent="Vocabulaire vide : assouplissez min_df ou max_df.";return}
+table($("e-t"),E);$("e-msg").textContent=E.N+" documents × "+E.v.length+" termes";
+$("e-top").innerHTML="<b>Terme le plus caractéristique</b><br>"+E.rows.map(function(r,i){var j=r.indexOf(Math.max.apply(null,r));return"D"+(i+1)+" : <mark>"+esc(E.v[j])+"</mark> ("+r[j].toFixed(2)+")"}).join("<br>")}
+["e-c","e-ng","e-mn","e-mx"].forEach(function(i){$(i).oninput=lab});lab();
+var h=parseInt(location.hash.slice(1),10);go(h?h-1:0);
+})();
+</script></body></html>
